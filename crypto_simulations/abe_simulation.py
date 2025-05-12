@@ -29,7 +29,7 @@ class ABESimulation:
         }
         return json.dumps(ciphertext) # Return as a JSON string for storage/transmission
 
-    def decrypt(self, ciphertext_str, user_secret_key_str):
+    # def decrypt(self, ciphertext_str, user_secret_key_str):
         """Decrypts data if the user's secret key attributes satisfy the ciphertext's policy."""
         print(f"[ABE SIM] Attempting to decrypt with key: {user_secret_key_str}")
         try:
@@ -61,6 +61,32 @@ class ABESimulation:
             print(f"[ABE SIM] Decryption error: {e}")
             return None
 
+    def decrypt(self, ciphertext_str, user_secret_key_str):
+      print(f"[ABE SIM] Attempting to decrypt with key: {user_secret_key_str}")
+      try:
+          ciphertext = json.loads(ciphertext_str)
+          policy_str = ciphertext.get("policy")
+          encrypted_content = ciphertext.get("encrypted_content")
+
+          # Tách các thuộc tính từ key
+          key_attrs_raw = user_secret_key_str.split("_with_")[0].replace("sk_abe_for_(", "").replace(")", "")
+          key_attrs_set = set(attr.strip() for attr in key_attrs_raw.split(","))
+
+          # Tách các thuộc tính từ policy
+          policy_attrs_set = set(attr.strip() for attr in policy_str.split(","))
+
+          # So sánh policy ⊆ key attributes
+          if policy_attrs_set.issubset(key_attrs_set):
+              print(f"[ABE SIM] Policy {policy_attrs_set} satisfied by key attributes {key_attrs_set}. Decryption successful.")
+              original_data = encrypted_content.replace(f"abe_encrypted_version_of(", "").replace(f")_under_policy({policy_str})", "")
+              return original_data
+          else:
+              print(f"[ABE SIM] Policy {policy_attrs_set} NOT satisfied by key attributes {key_attrs_set}. Decryption failed.")
+              return None
+      except Exception as e:
+          print(f"[ABE SIM] Decryption error: {e}")
+          return None
+        
 if __name__ == '__main__':
     abe_system = ABESimulation()
     
