@@ -12,37 +12,37 @@ class ZKPSimulation:
         print(f"[ZKP SIM] Setup complete. Proving Key: {self.proving_key_sim}, Verification Key: {self.verification_key_sim}")
 
     def generate_proof(self, private_witness_data_str, public_inputs_str):
-      """
-      Simulates generating a ZKP.
-      - private_witness_data_str: Data known only to the prover (e.g., student ID, full degree details).
-      - public_inputs_str: Data known to both prover and verifier (e.g., hash of the degree, university name).
-      The proof shows that the prover knows private_witness that, along with public_inputs, satisfies some statement.
-      """
-      print(f"[ZKP SIM] Generating proof with private witness (first 50 chars): {private_witness_data_str[:50]}... and public inputs: {public_inputs_str}")
-      
-      # Parse the inputs to verify consistency
-      private_data = json.loads(private_witness_data_str)
-      public_inputs = json.loads(public_inputs_str)
-      
-      # Check if the university name in private data matches the asserted university name
-      actual_university = private_data.get("degreeDetails", {}).get("universityName")
-      asserted_university = public_inputs.get("asserted_university_name")
-      
-      if actual_university != asserted_university:
-          print(f"[ZKP SIM] Error: University mismatch. Actual: {actual_university}, Asserted: {asserted_university}")
-          return "zkp_proof_failed_due_to_data_inconsistency"
-      
-      # For simulation, the proof is just a hash of the inputs and a fixed string.
-      # In reality, this is a complex cryptographic object.
-      proof_content = {
-          "private_witness_hash_sim": hashlib.sha256(private_witness_data_str.encode()).hexdigest(),
-          "public_inputs": public_inputs_str,
-          "statement_sim": f"Prover knows witness for public inputs {public_inputs_str}",
-          "generated_with_pk": self.proving_key_sim
-      }
-      proof = f"zkp_proof_({json.dumps(proof_content)})"
-      print(f"[ZKP SIM] Proof generated successfully.")
-      return proof
+        """
+        Simulates generating a ZKP.
+        - private_witness_data_str: Data known only to the prover (e.g., student ID, full degree details).
+        - public_inputs_str: Data known to both prover and verifier (e.g., hash of the degree, university name).
+        The proof shows that the prover knows private_witness that, along with public_inputs, satisfies some statement.
+        """
+        print(f"[ZKP SIM] Generating proof with private witness (first 50 chars): {private_witness_data_str[:50]}... and public inputs: {public_inputs_str}")
+        
+        # Parse the inputs to verify consistency
+        private_data = json.loads(private_witness_data_str)
+        public_inputs = json.loads(public_inputs_str)
+        
+        # Check if the university name in private data matches the asserted university name
+        actual_university = private_data.get("degreeDetails", {}).get("universityName")
+        asserted_university = public_inputs.get("asserted_university_name")
+        
+        if actual_university != asserted_university:
+            print(f"[ZKP SIM] Error: University mismatch. Actual: {actual_university}, Asserted: {asserted_university}")
+            return "zkp_proof_failed_due_to_data_inconsistency"
+        
+        # For simulation, the proof is just a hash of the inputs and a fixed string.
+        # In reality, this is a complex cryptographic object.
+        proof_content = {
+            "private_witness_hash_sim": hashlib.sha256(private_witness_data_str.encode()).hexdigest(),
+            "public_inputs": public_inputs_str,
+            "statement_sim": f"Prover knows witness for public inputs {public_inputs_str}",
+            "generated_with_pk": self.proving_key_sim
+        }
+        proof = f"zkp_proof_({json.dumps(proof_content)})"
+        print(f"[ZKP SIM] Proof generated successfully.")
+        return proof
 
     def verify_proof(self, proof_str, public_inputs_str):
         """
