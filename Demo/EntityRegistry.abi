@@ -1,0 +1,315 @@
+{
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "string",
+          "name": "entityId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "enum EntityRegistry.EntityType",
+          "name": "entityType",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "primaryAddress_on_KAMC_Chain",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "specificChainAddress",
+          "type": "address"
+        }
+      ],
+      "name": "EntityRegistered",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_entityId",
+          "type": "string"
+        }
+      ],
+      "name": "deactivateEntity",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "entitiesById",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "entityId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "enum EntityRegistry.EntityType",
+          "name": "entityType",
+          "type": "uint8"
+        },
+        {
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "primaryAddress_on_KAMC_Chain",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "specificChainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "metadata",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "entityIdByPrimaryAddress",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_primaryAddress",
+          "type": "address"
+        }
+      ],
+      "name": "getEntityIdByPrimaryAddress",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_entityId",
+          "type": "string"
+        }
+      ],
+      "name": "getEntityInfo",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "string",
+              "name": "entityId_on_KAMC_Chain",
+              "type": "string"
+            },
+            {
+              "internalType": "enum EntityRegistry.EntityType",
+              "name": "entityType",
+              "type": "uint8"
+            },
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "address",
+              "name": "primaryAddress_on_KAMC_Chain",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "specificChainAddress",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "metadata",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "isActive",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct EntityRegistry.EntityInfo",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_empName",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_empAddress_on_EMP_Chain",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "_metadata",
+          "type": "string"
+        }
+      ],
+      "name": "registerEmployer",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "entityId",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_studentName",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_metadata",
+          "type": "string"
+        }
+      ],
+      "name": "registerStudent",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "entityId",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_uniName",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_uniAddress_on_UNI_Chain",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "_metadata",
+          "type": "string"
+        }
+      ],
+      "name": "registerUniversity",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "entityId",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_entityId",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_newSpecificChainAddress",
+          "type": "address"
+        }
+      ],
+      "name": "updateEntitySpecificChainAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}

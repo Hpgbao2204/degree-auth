@@ -1,0 +1,16 @@
+{
+  "UNI_CHAIN": {
+    "RPC_URL": "http://127.0.0.1:8545",
+    "UniversityRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+  },
+  "EMP_CHAIN": {
+    "RPC_URL": "http://127.0.0.1:8546",
+    "VerificationRequester": "0x8464135c8F25Da09e49BC8782676a84730C318bC",
+    "StudentConsentRegistry": "0x71C95911E9a5D330f4D621842EC243EE1343292e"
+  },
+  "KAMC_CHAIN": {
+    "RPC_URL": "http://127.0.0.1:8547",
+    "EntityRegistry": "0xC469e7aE4aD962c30c7111dc580B4adbc7E914DD",
+    "KAMCControl": "0x43ca3D2C94be00692D207C6A1e60D8B325c6f12f"
+  }
+}

@@ -1,0 +1,327 @@
+{
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "requestId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "degreeHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "verificationStatus",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "comment",
+          "type": "string"
+        }
+      ],
+      "name": "VerificationCompleted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "requestId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "employerAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "degreeHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "VerificationRequested",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_requestId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getRequestInfo",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "requestId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "employerAddress_on_EMP_Chain",
+              "type": "address"
+            },
+            {
+              "internalType": "string",
+              "name": "employerId_on_KAMC_Chain",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "studentId_on_KAMC_Chain",
+              "type": "string"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "degreeHash_on_UNI_Chain",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "string",
+              "name": "purpose",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "isOpen",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "resultSubmitted",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "verificationStatus",
+              "type": "bool"
+            },
+            {
+              "internalType": "string",
+              "name": "verifierComment",
+              "type": "string"
+            }
+          ],
+          "internalType": "struct VerificationRequester.VerificationRequest",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextRequestId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relayerAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_purpose",
+          "type": "string"
+        }
+      ],
+      "name": "requestVerification",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "requests",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "requestId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "employerAddress_on_EMP_Chain",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "isOpen",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "resultSubmitted",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "verificationStatus",
+          "type": "bool"
+        },
+        {
+          "internalType": "string",
+          "name": "verifierComment",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_relayerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "setRelayerAddress",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_requestId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "_status",
+          "type": "bool"
+        },
+        {
+          "internalType": "string",
+          "name": "_comment",
+          "type": "string"
+        }
+      ],
+      "name": "submitVerificationResult",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}
