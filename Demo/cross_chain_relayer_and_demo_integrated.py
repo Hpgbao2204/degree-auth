@@ -1,381 +1,612 @@
+"""
+Event-Driven Cross-Chain Education Credential Demo
+
+This script demonstrates a cross-chain workflow for issuing and verifying
+educational credentials, using real on-chain interactions and event listening.
+It interacts with three separate Hardhat nodes simulating different blockchains:
+- UNI-Chain: For University Registry
+- EMP-Chain: For Employer Verification Requests and Student Consent
+- KAMC-Chain: For Entity Registry and KAMC Control (ABE/TSS parameters)
+
+Assumes ABI files (e.g., UniversityRegistry.abi) are in the same directory as this script.
+Assumes crypto_simulations modules are in a subdirectory named 'crypto_simulations'.
+"""
 import json
+import os
 import time
 import hashlib
 from web3 import Web3
-from web3.middleware import ExtraDataToPOAMiddleware # For PoA chains like local Hardhat
+from web3.middleware import ExtraDataToPOAMiddleware # For PoA chains like Hardhat default
 
-# Import simulated crypto modules
+# Import crypto simulation modules
 from crypto_simulations.abe_simulation import ABESimulation
 from crypto_simulations.mpc_simulation import MPCSimulation
 from crypto_simulations.tss_simulation import TSSSimulation
 from crypto_simulations.zkp_simulation import ZKPSimulation
 
-# --- Configuration (Replace with actual values or a config file) ---
-RPC_URL_UNI_CHAIN = "http://localhost:8545" # Hardhat node for University Chain
-RPC_URL_EMP_CHAIN = "http://localhost:8546" # Hardhat node for Employer Chain
-RPC_URL_KAMC_CHAIN = "http://localhost:8547" # Hardhat node for KAMC Chain
-
-# --- Account Private Keys (for demo purposes, use environment variables in production) ---
-OWNER_PK_UNI = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" # Default Hardhat account 0
-OWNER_PK_EMP = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-OWNER_PK_KAMC = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-
-UNIVERSITY_A_PK = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" # Hardhat account 1
-STUDENT_A_PK = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"    # Hardhat account 2
-EMPLOYER_A_PK = "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" # Hardhat account 3
-
-# --- Contract ABIs (Load from JSON files compiled by Hardhat/Truffle) ---
-UNIVERSITY_REGISTRY_ABI = "./UniversityRegistry.abi" 
-VERIFICATION_REQUESTER_ABI = "./VerificationRequester.abi" 
-STUDENT_CONSENT_REGISTRY_ABI = "./StudentConsentRegistry.abi" 
-ENTITY_REGISTRY_ABI = "./EntityRegistry.abi" 
-KAMC_CONTROL_ABI = "./KAMCControl.abi" 
-
-# --- Placeholder for Contract Addresses (will be populated after deployment) ---
-CONTRACT_ADDRESSES = {
-    "UNI_CHAIN": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "EMP_CHAIN": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    "KAMC_CHAIN": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"
+# --- Configuration (User Provided or Default) ---
+CONFIG = {
+    "UNI_CHAIN": {
+        "RPC_URL": "http://127.0.0.1:8545",
+        "UniversityRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "ACCOUNT_ADDRESS": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "PRIVATE_KEY": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    },
+    "EMP_CHAIN": {
+        "RPC_URL": "http://127.0.0.1:8546",
+        "VerificationRequester": "0x8464135c8F25Da09e49BC8782676a84730C318bC",
+        "StudentConsentRegistry": "0x71C95911E9a5D330f4D621842EC243EE1343292e",
+        "ACCOUNT_ADDRESS": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        "PRIVATE_KEY": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+    },
+    "KAMC_CHAIN": {
+        "RPC_URL": "http://127.0.0.1:8547",
+        "EntityRegistry": "0xC469e7aE4aD962c30c7111dc580B4adbc7E914DD",
+        "KAMCControl": "0x43ca3D2C94be00692D207C6A1e60D8B325c6f12f",
+        "ACCOUNT_ADDRESS": "0xcd3B766CCDd6AE721141F452C550Ca635964ce71", # account 15
+        "PRIVATE_KEY": "0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61"
+    }
 }
 
-# --- Simulated Off-Chain Storage ---
-OFF_CHAIN_ENCRYPTED_CREDENTIALS = {} # {degree_hash: encrypted_credential_data_json_str}
-OFF_CHAIN_ENCRYPTED_ABE_KEYS = {} # {request_id: encrypted_abe_key_for_user_json_str}
+# --- Off-Chain Storage Simulation ---
+OFF_CHAIN_ENCRYPTED_CREDENTIALS = {}  # {degree_hash_hex: encrypted_credential_data_json_str}
+OFF_CHAIN_ENCRYPTED_ABE_KEYS_STUDENT = {} # {student_kamc_id: abe_secret_key_sim}
+OFF_CHAIN_ENCRYPTED_ABE_KEYS_EMPLOYER = {} # {request_id: abe_secret_key_sim}
 
-# --- Initialize Simulated Crypto Systems ---
-abe_system = ABESimulation()
-mpc_system = MPCSimulation(num_parties=3) # Assuming 3 KAMC members for MPC/TSS
-tss_system = TSSSimulation(num_participants=3, threshold=2)
-zkp_system = ZKPSimulation()
-
-# --- Helper Functions ---
-def get_w3_instance(rpc_url):
-    w3 = Web3(Web3.HTTPProvider(rpc_url))
-    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0) # Necessary for Hardhat
-    if not w3.is_connected():
-        raise ConnectionError(f"Failed to connect to {rpc_url}")
-    return w3
-
-def deploy_contract(w3, contract_abi, contract_bytecode, deployer_account):
-    Contract = w3.eth.contract(abi=contract_abi, bytecode=contract_bytecode)
-    tx_hash = Contract.constructor().transact({"from": deployer_account.address, "gas": 5000000})
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print(f"Deployed {Contract.__name__ if hasattr(Contract, '__name__') else 'contract'} to {tx_receipt.contractAddress}")
-    return w3.eth.contract(address=tx_receipt.contractAddress, abi=contract_abi)
-
-# --- Relayer Logic and Demo Scenario ---
-class CrossChainRelayerDemo:
-    def __init__(self):
-        self.w3_uni = get_w3_instance(RPC_URL_UNI_CHAIN)
-        self.w3_emp = get_w3_instance(RPC_URL_EMP_CHAIN)
-        self.w3_kamc = get_w3_instance(RPC_URL_KAMC_CHAIN)
-
-        self.owner_uni = self.w3_uni.eth.account.from_key(OWNER_PK_UNI)
-        self.owner_emp = self.w3_emp.eth.account.from_key(OWNER_PK_EMP)
-        self.owner_kamc = self.w3_kamc.eth.account.from_key(OWNER_PK_KAMC)
-
-        self.uni_a_acct_uni = self.w3_uni.eth.account.from_key(UNIVERSITY_A_PK)
-        self.uni_a_acct_kamc = self.w3_kamc.eth.account.from_key(UNIVERSITY_A_PK)
-
-        self.student_a_acct_emp = self.w3_emp.eth.account.from_key(STUDENT_A_PK)
-        self.student_a_acct_kamc = self.w3_kamc.eth.account.from_key(STUDENT_A_PK)
-
-        self.employer_a_acct_emp = self.w3_emp.eth.account.from_key(EMPLOYER_A_PK)
-        self.employer_a_acct_kamc = self.w3_kamc.eth.account.from_key(EMPLOYER_A_PK)
-        
-        self.contracts = CONTRACT_ADDRESSES
-        self.load_abis() 
-
-    def load_abis(self):
-        global UNIVERSITY_REGISTRY_ABI, VERIFICATION_REQUESTER_ABI, STUDENT_CONSENT_REGISTRY_ABI, ENTITY_REGISTRY_ABI, KAMC_CONTROL_ABI
+# --- Load ABI files ---
+def load_abi(contract_name):
+    abi_file_path = f"{contract_name}.abi"
+    if not os.path.exists(abi_file_path):
+        raise FileNotFoundError(f"ABI file not found: {abi_file_path}. Please place it in the same directory as the script.")
+    
+    with open(abi_file_path, 'r') as f:
+        content = f.read()
+    
+    # Check if content starts with "abi": and fix the format
+    if content.strip().startswith('"abi":'):
         try:
-            # Create dummy ABI files if they don't exist for the script to run without error
-            # In a real setup, these would be populated by the Hardhat compilation
-            abi_files = {
-                "UniversityRegistry.abi": UNIVERSITY_REGISTRY_ABI,
-                "VerificationRequester.abi": VERIFICATION_REQUESTER_ABI,
-                "StudentConsentRegistry.abi": STUDENT_CONSENT_REGISTRY_ABI,
-                "EntityRegistry.abi": ENTITY_REGISTRY_ABI,
-                "KAMCControl.abi": KAMC_CONTROL_ABI
-            }
-            minimal_constructor_abi = json.dumps([{"inputs":[],"stateMutability":"nonpayable","type":"constructor"}])
-            for f_name, abi_var in abi_files.items():
-                try:
-                    with open(f_name, "r") as f:
-                        loaded_abi = json.load(f)
-                        if f_name == "UniversityRegistry.abi": UNIVERSITY_REGISTRY_ABI = loaded_abi
-                        elif f_name == "VerificationRequester.abi": VERIFICATION_REQUESTER_ABI = loaded_abi
-                        elif f_name == "StudentConsentRegistry.abi": STUDENT_CONSENT_REGISTRY_ABI = loaded_abi
-                        elif f_name == "EntityRegistry.abi": ENTITY_REGISTRY_ABI = loaded_abi
-                        elif f_name == "KAMCControl.abi": KAMC_CONTROL_ABI = loaded_abi
-                except FileNotFoundError:
-                    print(f"ABI file {f_name} not found, creating dummy ABI file and using placeholder.")
-                    with open(f_name, "w") as f_write:
-                        f_write.write(minimal_constructor_abi)
-                    if f_name == "UniversityRegistry.abi": UNIVERSITY_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-                    elif f_name == "VerificationRequester.abi": VERIFICATION_REQUESTER_ABI = json.loads(minimal_constructor_abi)
-                    elif f_name == "StudentConsentRegistry.abi": STUDENT_CONSENT_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-                    elif f_name == "EntityRegistry.abi": ENTITY_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-                    elif f_name == "KAMCControl.abi": KAMC_CONTROL_ABI = json.loads(minimal_constructor_abi)
-            print("ABIs loaded/placeholders created.")
-        except Exception as e:
-            print(f"Error during ABI loading: {e}. Using minimal placeholders.")
-            # Fallback to minimal ABI if any other error occurs
-            UNIVERSITY_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-            VERIFICATION_REQUESTER_ABI = json.loads(minimal_constructor_abi)
-            STUDENT_CONSENT_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-            ENTITY_REGISTRY_ABI = json.loads(minimal_constructor_abi)
-            KAMC_CONTROL_ABI = json.loads(minimal_constructor_abi)
+            # Wrap in curly braces to make it a valid JSON object
+            wrapped_content = '{' + content + '}'
+            parsed = json.loads(wrapped_content)
+            return parsed["abi"]
+        except json.JSONDecodeError:
+            pass
 
-    def get_contract_instance(self, chain_name, contract_name):
-        address = self.contracts[chain_name].get(contract_name)
-        if not address or address.startswith("0xDeployed") or len(address) != 42:
-            # Try to load from a common config if not set, or raise error
+# --- Web3 Setup ---
+w3_uni = Web3(Web3.HTTPProvider(CONFIG["UNI_CHAIN"]["RPC_URL"]))
+w3_emp = Web3(Web3.HTTPProvider(CONFIG["EMP_CHAIN"]["RPC_URL"]))
+w3_kamc = Web3(Web3.HTTPProvider(CONFIG["KAMC_CHAIN"]["RPC_URL"]))
+
+# Inject PoA middleware for Hardhat local nodes
+for w3_instance in [w3_uni, w3_emp, w3_kamc]:
+    w3_instance.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+
+# --- Contract Instances ---
+contracts = {
+    "uni": {},
+    "emp": {},
+    "kamc": {}
+}
+
+try:
+    contracts["uni"]["UniversityRegistry"] = w3_uni.eth.contract(
+        address=CONFIG["UNI_CHAIN"]["UniversityRegistry"],
+        abi=load_abi("UniversityRegistry")
+    )
+    contracts["emp"]["VerificationRequester"] = w3_emp.eth.contract(
+        address=CONFIG["EMP_CHAIN"]["VerificationRequester"],
+        abi=load_abi("VerificationRequester")
+    )
+    contracts["emp"]["StudentConsentRegistry"] = w3_emp.eth.contract(
+        address=CONFIG["EMP_CHAIN"]["StudentConsentRegistry"],
+        abi=load_abi("StudentConsentRegistry")
+    )
+    contracts["kamc"]["EntityRegistry"] = w3_kamc.eth.contract(
+        address=CONFIG["KAMC_CHAIN"]["EntityRegistry"],
+        abi=load_abi("EntityRegistry")
+    )
+    contracts["kamc"]["KAMCControl"] = w3_kamc.eth.contract(
+        address=CONFIG["KAMC_CHAIN"]["KAMCControl"],
+        abi=load_abi("KAMCControl")
+    )
+except FileNotFoundError as e:
+    print(f"Error loading ABI: {e}")
+    exit()
+except Exception as e:
+    print(f"An error occurred during contract setup: {e}")
+    exit()
+
+print("Web3 instances and contract objects initialized.")
+
+# --- Crypto Simulation Instances ---
+abe_sim = ABESimulation()
+mpc_sim = MPCSimulation(num_parties=3) # KAMC members
+tss_sim = TSSSimulation(num_participants=3, threshold=2) # KAMC members for TSS
+zkp_sim = ZKPSimulation()
+
+
+print("Cryptographic simulations initialized.")
+
+# --- Helper Functions for Transactions ---
+def send_transaction(w3, contract_function, account_private_key):
+    account_address = w3.eth.account.from_key(account_private_key).address
+    nonce = w3.eth.get_transaction_count(account_address)
+    gas_price = w3.eth.gas_price
+    
+    txn_params = {
+        'from': account_address,
+        'nonce': nonce,
+        'gasPrice': gas_price
+    }
+    
+    try:
+        # Estimate gas
+        estimated_gas = contract_function.estimate_gas(txn_params)
+        txn_params['gas'] = estimated_gas
+    except Exception as e:
+        print(f"Gas estimation failed: {e}. Using default gas limit 3,000,000")
+        txn_params['gas'] = 3000000 # Default gas limit
+
+    transaction = contract_function.build_transaction(txn_params)
+    signed_txn = w3.eth.account.sign_transaction(transaction, private_key=account_private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+    print(f"Transaction sent: {tx_hash.hex()}")
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+    
+    if tx_receipt.status == 0:
+        print(f"Transaction failed: {tx_receipt}")
+        raise Exception(f"Transaction failed: {tx_receipt.transactionHash.hex()}")
+    print(f"Transaction successful: {tx_receipt.transactionHash.hex()}")
+    return tx_receipt
+
+def wait_for_event(event_filter, timeout=120, poll_interval=2):
+    start_time = time.time()
+    while time.time() < start_time + timeout:
+        new_events = event_filter.get_new_entries()
+        if new_events:
+            return new_events
+        time.sleep(poll_interval)
+    print("Timeout waiting for event.")
+    return []
+
+# --- Main Demo Logic ---
+def main_demo():
+    print("\n--- Starting Event-Driven Cross-Chain Education Credential Demo ---")
+
+    # Define participants (using KAMC chain addresses for registration)
+    uni_owner_addr = CONFIG["UNI_CHAIN"]["ACCOUNT_ADDRESS"]
+    uni_kamc_chain_addr = CONFIG["KAMC_CHAIN"]["ACCOUNT_ADDRESS"] # For simplicity, KAMC deployer registers Uni
+    uni_pk = CONFIG["KAMC_CHAIN"]["PRIVATE_KEY"]
+
+    student_addr = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65" # Hardhat account 4
+    student_pk = "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" # Hardhat account 3 PK
+    
+    employer_addr = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" # Hardhat account 0
+    employer_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" # Hardhat account 0 PK
+
+    # --- 1. Entity Registration on KAMC-Chain ---
+    print("\n--- 1. Entity Registration on KAMC-Chain ---")
+    entity_registry_contract = contracts["kamc"]["EntityRegistry"]
+    kamc_control_contract = contracts["kamc"]["KAMCControl"]
+
+    # Register University
+    print("Registering University (Stanford)...")
+    tx_receipt_uni_reg = send_transaction(
+        w3_kamc,
+        entity_registry_contract.functions.registerUniversity(
+            "Stanford University", 
+            CONFIG["UNI_CHAIN"]["UniversityRegistry"], # Address of UniRegistry on UNI-Chain (for reference)
+            "Top Tier University"
+        ),
+        uni_pk # KAMC chain deployer/owner registers the uni
+    )
+    # We need to get the emitted entityId for Stanford
+    stanford_kamc_id = ""
+    for log in tx_receipt_uni_reg['logs']:
+        try:
+            event_data = entity_registry_contract.events.EntityRegistered().process_log(log)
+            if event_data['args']['name'] == "Stanford University":
+                stanford_kamc_id = event_data['args']['entityId_on_KAMC_Chain']
+                print(f"Stanford KAMC ID: {stanford_kamc_id}")
+                break
+        except Exception:
+            pass
+    if not stanford_kamc_id:
+        print("Could not retrieve Stanford KAMC ID from event. Exiting.")
+        return
+
+    # Register Student
+    print("Registering Student (Alice)...")
+    # For student, their KAMC primary address is their main identifier for registration
+    # The student_pk here is for the KAMC chain if Alice were to register herself.
+    # For simplicity, let's assume KAMC admin/deployer registers Alice.
+    student_address = w3_kamc.eth.account.from_key(student_pk).address
+    alice_kamc_id = None
+
+    try:
+        # Try to get existing entity ID by address
+        alice_kamc_id = entity_registry_contract.functions.getEntityIdByPrimaryAddress(student_address).call()
+        print(f"Student address {student_address} already registered with ID: {alice_kamc_id}")
+    except Exception:
+        # If no entity exists, proceed with registration
+        tx_receipt_stu_reg = send_transaction(
+            w3_kamc,
+            entity_registry_contract.functions.registerStudent("Alice Wonderland", "CS Student"),
+            student_pk # Student uses their own PK on KAMC chain
+        )
+        
+        # Extract entity ID from registration event
+        for log in tx_receipt_stu_reg['logs']:
             try:
-                with open("deployed_addresses.json", "r") as f:
-                    all_deployed = json.load(f)
-                    address = all_deployed.get(chain_name, {}).get(contract_name)
-                    if not address:
-                        raise ValueError(f"Contract {contract_name} address not found in deployed_addresses.json for {chain_name}")
-                    self.contracts[chain_name][contract_name] = address # Update local cache
-            except FileNotFoundError:
-                raise ValueError(f"Contract {contract_name} not deployed or address is a placeholder on {chain_name}. Run deployment scripts and update addresses or deployed_addresses.json.")
-            except Exception as e:
-                raise ValueError(f"Error loading address for {contract_name} on {chain_name}: {e}")
+                event_data = entity_registry_contract.events.EntityRegistered().process_log(log)
+                if event_data['args']['name'] == "Alice Wonderland":
+                    alice_kamc_id = event_data['args']['entityId_on_KAMC_Chain']
+                    print(f"Alice KAMC ID: {alice_kamc_id}")
+                    break
+            except Exception:
+                pass
+
+    if not alice_kamc_id:
+        print("Could not retrieve Alice KAMC ID. Exiting.")
+        return
+
+    # Register Employer
+    print("Registering Employer (Google)...")
+    tx_receipt_emp_reg = send_transaction(
+        w3_kamc,
+        entity_registry_contract.functions.registerEmployer(
+            "Google LLC", 
+            CONFIG["EMP_CHAIN"]["VerificationRequester"], # Address of VerifReq on EMP-Chain (for reference)
+            "Tech Company"
+        ),
+        employer_pk # Employer uses their own PK on KAMC chain
+    )
+    google_kamc_id = ""
+    for log in tx_receipt_emp_reg['logs']:
+        try:
+            event_data = entity_registry_contract.events.EntityRegistered().process_log(log)
+            if event_data['args']['name'] == "Google LLC":
+                google_kamc_id = event_data['args']['entityId_on_KAMC_Chain']
+                print(f"Google KAMC ID: {google_kamc_id}")
+                break
+        except Exception:
+            pass
+    if not google_kamc_id:
+        print("Could not retrieve Google KAMC ID from event. Exiting.")
+        return
         
-        w3 = None
-        abi = None
-        if chain_name == "UNI_CHAIN": w3 = self.w3_uni
-        elif chain_name == "EMP_CHAIN": w3 = self.w3_emp
-        elif chain_name == "KAMC_CHAIN": w3 = self.w3_kamc
+    # Set KAMC Control parameters (simulated)
+    print("Setting KAMC Control parameters (TSS PubKey, ABE PubParams)...")
+    send_transaction(
+        w3_kamc,
+        kamc_control_contract.functions.updateTSSPublicKey(tss_sim.public_key().encode()), # bytes
+        uni_pk # KAMC deployer/owner
+    )
+    send_transaction(
+        w3_kamc,
+        kamc_control_contract.functions.updateABEPublicParams(json.dumps(abe_sim.get_public_params()).encode()), # bytes
+        uni_pk # KAMC deployer/owner
+    )
+    print("KAMC Setup complete.")
 
-        if contract_name == "UniversityRegistry": abi = UNIVERSITY_REGISTRY_ABI
-        elif contract_name == "VerificationRequester": abi = VERIFICATION_REQUESTER_ABI
-        elif contract_name == "StudentConsentRegistry": abi = STUDENT_CONSENT_REGISTRY_ABI
-        elif contract_name == "EntityRegistry": abi = ENTITY_REGISTRY_ABI
-        elif contract_name == "KAMCControl": abi = KAMC_CONTROL_ABI
-        
-        if not w3 or not abi:
-            raise ValueError("Invalid chain or contract name for instance retrieval.")
-        return w3.eth.contract(address=address, abi=abi)
+    # --- 2. Credential Issuance Flow ---
+    print("\n--- 2. Credential Issuance Flow ---")
+    university_registry_contract = contracts["uni"]["UniversityRegistry"]
+    
+    # University needs to be registered on its own UniversityRegistry contract first (by owner)
+    # The owner of UniversityRegistry is CONFIG["UNI_CHAIN"]["ACCOUNT_ADDRESS"]
+    print(f"Registering {stanford_kamc_id} on UniversityRegistry on UNI-Chain...")
+    # The address used to call registerUniversity on UNI-Chain must be the KAMC ID's specificChainAddress if that's how it's designed
+    # Or, the UniversityRegistry owner (deployer) registers the KAMC ID's primary KAMC address.
+    # For this demo, let's assume the UniversityRegistry owner (deployer of UniRegistry) registers itself as a valid university.
+    # The address that calls issueCredential must be a registered university.
+    # Let's use the deployer of UniRegistry as the 'university' for issuing.
+    uni_issuer_address_on_uni_chain = CONFIG["UNI_CHAIN"]["ACCOUNT_ADDRESS"]
+    uni_issuer_pk_on_uni_chain = CONFIG["UNI_CHAIN"]["PRIVATE_KEY"]
 
-    def setup_entities_and_permissions(self):
-        print("\n--- Setting up Entities and Permissions (Simulated On-Chain Calls) ---")
-        self.stanford_kamc_id = "UNI-STANFORD-001"
-        self.alice_kamc_id = "STU-ALICE-001"
-        self.google_kamc_id = "EMP-GOOGLE-001"
-        print(f"Simulated KAMC IDs: Stanford ({self.stanford_kamc_id}), Alice ({self.alice_kamc_id}), Google ({self.google_kamc_id})")
-        
-        # Simulate registering entities on KAMC-Chain (EntityRegistry)
-        entity_registry_contract = self.get_contract_instance("KAMC_CHAIN", "EntityRegistry")
-        tx_uni = entity_registry_contract.functions.registerEntity(self.stanford_kamc_id, self.uni_a_acct_kamc.address, "UNIVERSITY").transact({"from": self.owner_kamc.address})
-        self.w3_kamc.eth.wait_for_transaction_receipt(tx_uni)
-        tx_stu = entity_registry_contract.functions.registerEntity(self.alice_kamc_id, self.student_a_acct_kamc.address, "STUDENT").transact({"from": self.owner_kamc.address})
-        self.w3_kamc.eth.wait_for_transaction_receipt(tx_stu)
-        tx_emp = entity_registry_contract.functions.registerEntity(self.google_kamc_id, self.employer_a_acct_kamc.address, "EMPLOYER").transact({"from": self.owner_kamc.address})
-        self.w3_kamc.eth.wait_for_transaction_receipt(tx_emp)
-        print("Simulated: Entities registered on KAMC-Chain EntityRegistry.")
-
-        # Simulate KAMC setting up public params on KAMCControl
-        kamc_control_contract = self.get_contract_instance("KAMC_CHAIN", "KAMCControl")
-        tx_tss = kamc_control_contract.functions.updateTSSPublicKey(tss_system.public_key).transact({"from": self.owner_kamc.address})
-        self.w3_kamc.eth.wait_for_transaction_receipt(tx_tss)
-        tx_abe = kamc_control_contract.functions.updateABEPublicParams(abe_system.public_parameters).transact({"from": self.owner_kamc.address})
-        self.w3_kamc.eth.wait_for_transaction_receipt(tx_abe)
-        print(f"Simulated: KAMC public TSS key ({tss_system.public_key}) and ABE params ({abe_system.public_parameters}) updated on KAMCControl.")
-        print("Entities and permissions setup complete (simulated).")
-
-    def credential_issuance_flow(self):
-        print("\n--- Credential Issuance Flow ---")
-        alice_degree_details = {"studentName": "Alice Wonderland", "degree": "B.S. Computer Science", "major": "AI", "graduationYear": 2024, "universityName": self.stanford_kamc_id}
-        alice_degree_details_str = json.dumps(alice_degree_details)
-        
-        alice_abe_attributes_for_degree = f"student_id:{self.alice_kamc_id},degree_topic:B.S. Computer Science"
-        encrypted_degree_data_json_str = abe_system.encrypt(alice_degree_details_str, alice_abe_attributes_for_degree)
-        
-        degree_hash_payload = f"{self.alice_kamc_id}-{alice_degree_details['degree']}-{alice_degree_details['graduationYear']}"
-        degree_hash = hashlib.sha256(degree_hash_payload.encode()).hexdigest()
-        degree_hash_bytes32 = "0x" + degree_hash 
-        OFF_CHAIN_ENCRYPTED_CREDENTIALS[degree_hash_bytes32] = encrypted_degree_data_json_str
-        off_chain_pointer = f"sim_storage://{degree_hash}"
-        print(f"Alice's degree hash: {degree_hash_bytes32}")
-        print(f"Encrypted degree data stored off-chain at: {off_chain_pointer}")
-
-        uni_registry_contract = self.get_contract_instance("UNI_CHAIN", "UniversityRegistry")
-        tx_hash = uni_registry_contract.functions.issueCredential(
-            self.alice_kamc_id,
-            alice_degree_details["degree"],
-            alice_degree_details["major"],
-            alice_degree_details["graduationYear"],
-            off_chain_pointer,
-            degree_hash_bytes32
-        ).transact({"from": self.uni_a_acct_uni.address, "gas": 1000000})
-        receipt = self.w3_uni.eth.wait_for_transaction_receipt(tx_hash)
-        print(f"CredentialIssued event on UNI-Chain (simulated). Tx: {receipt.transactionHash.hex() if receipt else 'N/A'}")
-        print(f"Simulated: CredentialIssued event on UNI-Chain for Alice's degree.")
-
-        print("[RELAYER] Detected CredentialIssued for Alice.")
-        kamc_control_contract = self.get_contract_instance("KAMC_CHAIN", "KAMCControl")
-        tx_hash = kamc_control_contract.functions.requestABEKeyGeneration(
-            self.alice_kamc_id,
-            alice_abe_attributes_for_degree 
-        ).transact({"from": self.owner_kamc.address, "gas": 500000})
-        receipt = self.w3_kamc.eth.wait_for_transaction_receipt(tx_hash)
-        abe_key_req_id_alice = kamc_control_contract.events.ABEKeyGenerationRequested().process_receipt(receipt)[0]['args']['requestId'] if receipt else 1
-        abe_key_req_id_alice = 1 # Simulated request ID
-        print(f"Simulated: ABEKeyGenerationRequested on KAMC-Chain for Alice (Request ID: {abe_key_req_id_alice}).")
-
-        # Simulate KAMC members (MPC) generating ABE key for Alice
-        # This would involve MPC protocol among KAMC members using their shares of ABE MSK
-        # For simulation, we directly call the mpc_system to get a simulated key.
-        mpc_input_for_alice_key = {
-            "user_attributes": alice_abe_attributes_for_degree,
-            "master_key_shares_info": "sim_kamc_abe_msk_shares_info" # Placeholder for actual MPC input
-        }
-        self.alice_abe_secret_key = mpc_system.secure_computation(mpc_input_for_alice_key, operation="generate_abe_user_sk")
-        print(f"[KAMC SIM] Generated ABE secret key for Alice (via MPC sim): {self.alice_abe_secret_key}")
-        
-        # KAMC (TSS) signs approval for this key generation (simulated)
-        approval_payload_alice = f"abe_key_generated_for_{self.alice_kamc_id}_req_{abe_key_req_id_alice}"
-        tss_sig_alice = tss_system.combine_signature_shares([
-            tss_system.generate_signature_share("participant_1", approval_payload_alice),
-            tss_system.generate_signature_share("participant_2", approval_payload_alice)
-        ], approval_payload_alice)
-        print(f"[KAMC SIM] TSS signature for Alice's ABE key generation: {tss_sig_alice}")
-
-        # Store Alice's ABE key (encrypted with her password, or delivered securely - simplified here)
-        OFF_CHAIN_ENCRYPTED_ABE_KEYS[f"student_{self.alice_kamc_id}"] = self.alice_abe_secret_key
-        print(f"Alice's ABE secret key stored (simulated secure storage).")
-        print("Credential Issuance Flow complete.")
-        return degree_hash_bytes32, off_chain_pointer # Return for verification flow
-
-    def credential_verification_flow(self, degree_hash_to_verify, off_chain_pointer_to_verify):
-        print("\n--- Credential Verification Flow ---")
-        # 1. Employer (Google) wants to verify Alice's degree
-        print(f"Employer {self.google_kamc_id} wants to verify degree with hash: {degree_hash_to_verify}")
-
-        # 2. Employer requests verification on EMP-Chain
-        verification_requester_contract = self.get_contract_instance("EMP_CHAIN", "VerificationRequester")
-        tx_hash = verification_requester_contract.functions.requestVerification(
-            self.alice_kamc_id, # Student KAMC ID
-            degree_hash_to_verify,
-            off_chain_pointer_to_verify,
-            self.stanford_kamc_id # Asserted University KAMC ID
-        ).transact({"from": self.employer_a_acct_emp.address, "gas": 500000})
-        receipt = self.w3_emp.eth.wait_for_transaction_receipt(tx_hash)
-        verification_request_id = verification_requester_contract.events.VerificationRequested().process_receipt(receipt)[0]['args']['requestId'] if receipt else 101
-        verification_request_id = 101 # Simulated request ID
-        print(f"Simulated: VerificationRequested event on EMP-Chain (Request ID: {verification_request_id}).")
-
-        # --- RELAYER ACTION (Listening to EMP-Chain for VerificationRequested) ---
-        print(f"[RELAYER] Detected VerificationRequested (ID: {verification_request_id}) for Alice's degree.")
-        # Relayer informs Student Alice about the request
-
-        # 3. Student Alice provides consent on EMP-Chain's StudentConsentRegistry
-        # This consent could be specific to the employer and the degree hash
-        student_consent_contract = self.get_contract_instance("EMP_CHAIN", "StudentConsentRegistry")
-        consent_message = f"I, {self.alice_kamc_id}, consent to {self.google_kamc_id} verifying my degree {degree_hash_to_verify}."
-        # For ZKP, Alice would generate a proof of consent and ownership
-        alice_private_consent_data = json.dumps({"student_id": self.alice_kamc_id, "degree_hash": degree_hash_to_verify, "consented_employer": self.google_kamc_id, "secret_phrase": "alice_consents_secretly"})
-        alice_public_consent_inputs = json.dumps({"degree_hash": degree_hash_to_verify, "employer_id": self.google_kamc_id})
-        zkp_consent_proof = zkp_system.generate_proof(alice_private_consent_data, alice_public_consent_inputs)
-        print(f"Alice generated ZKP for consent: {zkp_consent_proof[:60]}...")
-        
-        tx_hash = student_consent_contract.functions.giveConsentWithZKP(
-            verification_request_id,
-            zkp_consent_proof, # ZKP of consent
-            alice_public_consent_inputs # Public inputs for ZKP verifier on-chain (or off-chain by relayer)
-        ).transact({"from": self.student_a_acct_emp.address, "gas": 500000})
-        self.w3_emp.eth.wait_for_transaction_receipt(tx_hash)
-        print(f"Simulated: StudentConsentGivenWithZKP event on EMP-Chain for Request ID: {verification_request_id}.")
-
-        # --- RELAYER ACTION (Listening to EMP-Chain for StudentConsentGivenWithZKP) ---
-        print(f"[RELAYER] Detected StudentConsentGivenWithZKP for Request ID: {verification_request_id}.")
-        # Relayer verifies ZKP of consent (simulated)
-        is_consent_zkp_valid = zkp_system.verify_proof(zkp_consent_proof, alice_public_consent_inputs)
-        if not is_consent_zkp_valid:
-            print("[RELAYER] ZKP Consent Verification FAILED. Aborting.")
-            return
-        print("[RELAYER] ZKP Consent Verification SUCCESSFUL.")
-
-        # 4. Relayer requests ABE key for Employer from KAMC-Chain
-        employer_abe_attributes = f"employer_id:{self.google_kamc_id},student_consent_for_degree:{degree_hash_to_verify}"
-        kamc_control_contract = self.get_contract_instance("KAMC_CHAIN", "KAMCControl")
-        tx_hash = kamc_control_contract.functions.requestABEKeyGeneration(
-            self.google_kamc_id, # Employer KAMC ID
-            employer_abe_attributes
-        ).transact({"from": self.owner_kamc.address, "gas": 500000})
-        receipt = self.w3_kamc.eth.wait_for_transaction_receipt(tx_hash)
-        abe_key_req_id_employer = kamc_control_contract.events.ABEKeyGenerationRequested().process_receipt(receipt)[0]['args']['requestId'] if receipt else 2
-        abe_key_req_id_employer = 2 # Simulated request ID
-        print(f"Simulated: ABEKeyGenerationRequested on KAMC-Chain for Employer (Request ID: {abe_key_req_id_employer}).")
-
-        # 5. KAMC (simulated MPC+TSS) generates ABE key for Employer
-        mpc_input_for_employer_key = {
-            "user_attributes": employer_abe_attributes,
-            "master_key_shares_info": "sim_kamc_abe_msk_shares_info"
-        }
-        employer_abe_secret_key = mpc_system.secure_computation(mpc_input_for_employer_key, operation="generate_abe_user_sk")
-        print(f"[KAMC SIM] Generated ABE secret key for Employer (via MPC sim): {employer_abe_secret_key}")
-        OFF_CHAIN_ENCRYPTED_ABE_KEYS[f"employer_{self.google_kamc_id}_req_{verification_request_id}"] = employer_abe_secret_key
-        print(f"Employer's ABE secret key stored (simulated secure storage).")
-
-        # 6. Relayer (or Employer with their ABE key) fetches encrypted credential from off-chain storage
-        encrypted_degree_data_from_storage = OFF_CHAIN_ENCRYPTED_CREDENTIALS.get(degree_hash_to_verify)
-        if not encrypted_degree_data_from_storage:
-            print(f"[RELAYER] Error: Encrypted credential not found for hash {degree_hash_to_verify}.")
-            return
-        print(f"[RELAYER] Fetched encrypted credential from off-chain storage.")
-
-        # 7. Employer decrypts credential data using their ABE key
-        decrypted_degree_data_str = abe_system.decrypt(encrypted_degree_data_from_storage, employer_abe_secret_key)
-        if decrypted_degree_data_str:
-            decrypted_degree_details = json.loads(decrypted_degree_data_str)
-            print(f"[EMPLOYER] Successfully decrypted degree details: {decrypted_degree_details}")
-            # Employer can now verify if the decrypted details match their expectations (e.g., university name)
-            if decrypted_degree_details.get("universityName") == self.stanford_kamc_id:
-                print("[EMPLOYER] Degree verification successful! University matches.")
-                # Update status on EMP-Chain (VerificationRequester)
-                verification_requester_contract = self.get_contract_instance("EMP_CHAIN", "VerificationRequester")
-                tx_hash = verification_requester_contract.functions.updateVerificationStatus(
-                    verification_request_id,
-                    True, # Verified successfully
-                    "Degree details match and ZKP consent valid."
-                ).transact({"from": self.owner_emp.address, "gas": 300000}) # Or employer's address if allowed
-                self.w3_emp.eth.wait_for_transaction_receipt(tx_hash)
-                print(f"Simulated: VerificationStatusUpdated on EMP-Chain for Request ID {verification_request_id} to VERIFIED.")
-            else:
-                print("[EMPLOYER] Degree verification FAILED! University mismatch in decrypted data.")
+    try:
+        # Check if already registered, if not, register.
+        # This is a simplification; a real system would have a clear mapping.
+        is_uni_registered = university_registry_contract.functions.registeredUniversities(uni_issuer_address_on_uni_chain).call()
+        if not is_uni_registered:
+            print(f"University {uni_issuer_address_on_uni_chain} not registered on UniRegistry. Registering...")
+            send_transaction(
+                w3_uni,
+                university_registry_contract.functions.registerUniversity(uni_issuer_address_on_uni_chain),
+                uni_issuer_pk_on_uni_chain # Owner of UniRegistry registers an issuer
+            )
+            print(f"University {uni_issuer_address_on_uni_chain} registered.")
         else:
-            print("[EMPLOYER] Failed to decrypt degree details with ABE key.")
-        
-        print("Credential Verification Flow complete.")
+            print(f"University {uni_issuer_address_on_uni_chain} already registered on UniRegistry.")
+    except Exception as e:
+        print(f"Error during university registration on UniRegistry: {e}")
+        return
 
-    def run_full_demo(self):
-        # self.deploy_all_contracts() # Ensure addresses are set (manually for this script)
-        self.setup_entities_and_permissions()
-        degree_hash, off_chain_pointer = self.credential_issuance_flow()
-        if degree_hash and off_chain_pointer:
-            self.credential_verification_flow(degree_hash, off_chain_pointer)
+    # Prepare credential data
+    alice_degree_details = {
+        "studentName": "Alice Wonderland",
+        "degree": "B.S. Computer Science",
+        "major": "Computer Science",
+        "graduationYear": 2024,
+        "universityName": "Stanford University"
+    }
+    alice_degree_details_json = json.dumps(alice_degree_details)
+    
+    # ABE policy for Alice's degree (example)
+    abe_policy_degree = f"student_id:{alice_kamc_id} AND degree_topic:B.S. Computer Science"
+    encrypted_degree_data = abe_sim.encrypt(alice_degree_details_json, abe_policy_degree)
+    
+    degree_hash_payload = alice_degree_details_json + encrypted_degree_data # Simplified hash source
+    degree_hash_bytes = hashlib.sha256(degree_hash_payload.encode('utf-8')).digest()
+    degree_hash_hex = degree_hash_bytes.hex()
+    print(f"Alice's degree hash (bytes): {degree_hash_bytes}")
+    print(f"Alice's degree hash (hex): {degree_hash_hex}")
+
+    OFF_CHAIN_ENCRYPTED_CREDENTIALS[degree_hash_hex] = encrypted_degree_data
+    print(f"Encrypted degree data for {degree_hash_hex} stored off-chain.")
+
+    # University issues credential on UNI-Chain
+    print(f"Issuing credential for Alice ({alice_kamc_id}) by {uni_issuer_address_on_uni_chain}...")
+    
+    # Event filter for CredentialIssued
+    credential_issued_event_filter = university_registry_contract.events.CredentialIssued.create_filter(
+        fromBlock='latest'
+    )
+
+    send_transaction(
+        w3_uni,
+        university_registry_contract.functions.issueCredential(
+            alice_kamc_id, # studentId_on_KAMC_Chain
+            "Bachelor of Science", # credentialType
+            "Computer Science", # major
+            2024, # graduationYear
+            f"sim_storage://{degree_hash_hex}", # offChainEncryptedDataPointer
+            degree_hash_bytes # degreeHash (bytes32)
+        ),
+        uni_issuer_pk_on_uni_chain
+    )
+    print("issueCredential transaction sent.")
+
+    # Wait for CredentialIssued event
+    print("Waiting for CredentialIssued event on UNI-Chain...")
+    issued_events = wait_for_event(credential_issued_event_filter, timeout=30)
+    if not issued_events:
+        print("CredentialIssued event not detected on UNI-Chain. Exiting issuance flow.")
+        return
+    
+    for event in issued_events:
+        if event['args']['degreeHash'] == degree_hash_bytes and event['args']['studentId_on_KAMC_Chain'] == alice_kamc_id:
+            print(f"[EVENT DETECTED on UNI-Chain] CredentialIssued for Alice (Degree Hash: {event['args']['degreeHash'].hex()})")
+            # Relayer action: Request ABE key for student from KAMC
+            print("Relayer: Requesting ABE key for student Alice from KAMC-Chain...")
+            
+            abe_key_req_student_event_filter = kamc_control_contract.events.ABEKeyGenerated.create_filter(
+                fromBlock='latest', 
+                argument_filters={'recipientId': alice_kamc_id}
+            )
+            
+            send_transaction(
+                w3_kamc,
+                kamc_control_contract.functions.requestABEKeyGeneration(
+                    alice_kamc_id, # recipientId
+                    json.dumps([{"attribute": "student_id", "value": alice_kamc_id}, {"attribute": "degree_topic", "value": "B.S. Computer Science"}]), # attributes_json
+                    1 # Key type: 1 for student, 2 for employer (example)
+                ),
+                uni_pk # KAMC chain admin/relayer initiates this
+            )
+            print("ABEKeyGeneration request for student sent to KAMC-Chain.")
+
+            print("Waiting for ABEKeyGenerated event for student on KAMC-Chain...")
+            student_key_events = wait_for_event(abe_key_req_student_event_filter, timeout=30)
+            if not student_key_events:
+                print("ABEKeyGenerated event for student not detected on KAMC-Chain.")
+                break # Break from issued_events loop
+            
+            for sk_event in student_key_events:
+                print(f"[EVENT DETECTED on KAMC-Chain] ABEKeyGenerated for Student {sk_event['args']['recipientId']}")
+                # Simulate MPC for key generation (as KAMCControl would trigger this)
+                student_abe_attributes = [{"attribute": "student_id", "value": alice_kamc_id}, {"attribute": "degree_topic", "value": "B.S. Computer Science"}]
+                simulated_student_abe_sk = mpc_sim.simulate_secure_computation(
+                    "generate_abe_user_sk", 
+                    inputs=student_abe_attributes # Simplified input
+                )
+                OFF_CHAIN_ENCRYPTED_ABE_KEYS_STUDENT[alice_kamc_id] = simulated_student_abe_sk
+                print(f"Simulated ABE secret key for Alice ({alice_kamc_id}) generated via MPC and stored off-chain.")
+            break # Found the matching CredentialIssued event
+    else:
+        print("No matching CredentialIssued event found for the transaction.")
+        return
+
+    print("Credential Issuance Flow complete.")
+
+    # --- 3. Credential Verification Flow ---
+    print("\n--- 3. Credential Verification Flow ---")
+    verification_requester_contract = contracts["emp"]["VerificationRequester"]
+    student_consent_contract = contracts["emp"]["StudentConsentRegistry"]
+
+    # Employer requests verification on EMP-Chain
+    print(f"Employer {google_kamc_id} requesting verification for degree hash {degree_hash_hex}...")
+    
+    verification_requested_event_filter = verification_requester_contract.events.VerificationRequested.create_filter(
+        fromBlock='latest',
+        argument_filters={'degreeHash': degree_hash_bytes, 'employerId_on_KAMC_Chain': google_kamc_id}
+    )
+    
+    tx_receipt_vr = send_transaction(
+        w3_emp,
+        verification_requester_contract.functions.requestVerification(
+            google_kamc_id, # employerId_on_KAMC_Chain
+            alice_kamc_id,  # studentId_on_KAMC_Chain
+            degree_hash_bytes, # degreeHash_on_UNI_Chain
+            "Pre-employment screening"
+        ),
+        CONFIG["EMP_CHAIN"]["PRIVATE_KEY"] # Employer's PK on EMP-Chain (using deployer for simplicity)
+    )
+    
+    current_request_id = None
+    for log_vr in tx_receipt_vr['logs']:
+        try:
+            event_data_vr = verification_requester_contract.events.VerificationRequested().process_log(log_vr)
+            current_request_id = event_data_vr['args']['requestId']
+            print(f"Verification Request ID: {current_request_id}")
+            break
+        except Exception:
+            pass
+    if current_request_id is None:
+        print("Could not get Verification Request ID. Exiting verification flow.")
+        return
+
+    print("Waiting for VerificationRequested event on EMP-Chain...")
+    requested_events = wait_for_event(verification_requested_event_filter, timeout=30)
+    if not requested_events:
+        print("VerificationRequested event not detected. Exiting.")
+        return
+
+    for event_vr in requested_events:
+        if event_vr['args']['requestId'] == current_request_id:
+            print(f"[EVENT DETECTED on EMP-Chain] VerificationRequested (ID: {current_request_id}) for Alice's degree by {google_kamc_id}")
+            
+            # Student grants consent with ZKP on EMP-Chain
+            print(f"Student {alice_kamc_id} granting consent with ZKP...")
+            zkp_public_inputs_consent = {"degree_hash": degree_hash_hex, "employer_id": google_kamc_id, "request_id": current_request_id}
+            zkp_private_witness_consent = {"student_id": alice_kamc_id, "degree_hash": degree_hash_hex, "action": "grant_consent"}
+            consent_proof = zkp_sim.generate_proof(zkp_private_witness_consent, zkp_public_inputs_consent)
+            print(f"ZKP consent proof generated: {consent_proof}")
+
+            consent_given_event_filter = student_consent_contract.events.ConsentGrantedWithZKP.create_filter(
+                fromBlock='latest',
+                argument_filters={'requestId': current_request_id}
+            )
+
+            send_transaction(
+                w3_emp,
+                student_consent_contract.functions.grantConsentWithZKP(
+                    current_request_id,
+                    alice_kamc_id,
+                    degree_hash_bytes,
+                    google_kamc_id,
+                    json.dumps(zkp_public_inputs_consent).encode(), # publicInputsBytes
+                    consent_proof.encode() # proofBytes
+                ),
+                student_pk # Student's PK on EMP-Chain
+            )
+            print("grantConsentWithZKP transaction sent.")
+
+            print("Waiting for ConsentGrantedWithZKP event on EMP-Chain...")
+            consent_events = wait_for_event(consent_given_event_filter, timeout=30)
+            if not consent_events:
+                print("ConsentGrantedWithZKP event not detected.")
+                break # from requested_events loop
+
+            for event_cg in consent_events:
+                print(f"[EVENT DETECTED on EMP-Chain] ConsentGrantedWithZKP for Request ID: {current_request_id}")
+                # Relayer verifies ZKP (off-chain)
+                is_consent_zkp_valid = zkp_sim.verify_proof(consent_proof, zkp_public_inputs_consent)
+                if not is_consent_zkp_valid:
+                    print("Relayer: ZKP Consent Verification FAILED. Aborting.")
+                    # Optionally submit a failed verification result
+                    break # from consent_events loop
+                
+                print("Relayer: ZKP Consent Verification SUCCESSFUL.")
+                # Relayer: Request ABE key for employer from KAMC
+                print("Relayer: Requesting ABE key for employer {google_kamc_id} from KAMC-Chain...")
+                
+                abe_key_req_employer_event_filter = kamc_control_contract.events.ABEKeyGenerated.create_filter(
+                    fromBlock='latest',
+                    argument_filters={'recipientId': google_kamc_id, 'requestId': current_request_id} # Assuming KAMCControl emits requestId
+                )
+
+                send_transaction(
+                    w3_kamc,
+                    kamc_control_contract.functions.requestABEKeyGenerationForVerification(
+                        google_kamc_id, # recipientId (employer)
+                        alice_kamc_id, # studentId
+                        degree_hash_bytes, # degreeHash
+                        current_request_id, # original EMP-Chain request ID for linking
+                        json.dumps([{"attribute": "employer_id", "value": google_kamc_id}, {"attribute": "student_consent_for_degree", "value": degree_hash_hex}]) # attributes_json
+                    ),
+                    uni_pk # KAMC chain admin/relayer
+                )
+                print("ABEKeyGeneration request for employer sent to KAMC-Chain.")
+
+                print("Waiting for ABEKeyGenerated event for employer on KAMC-Chain...")
+                employer_key_events = wait_for_event(abe_key_req_employer_event_filter, timeout=30)
+                if not employer_key_events:
+                    print("ABEKeyGenerated event for employer not detected.")
+                    break # from consent_events loop
+                
+                for ek_event in employer_key_events:
+                    print(f"[EVENT DETECTED on KAMC-Chain] ABEKeyGenerated for Employer {ek_event['args']['recipientId']} (Request ID: {ek_event['args']['requestId']})")
+                    employer_abe_attributes = [{"attribute": "employer_id", "value": google_kamc_id}, {"attribute": "student_consent_for_degree", "value": degree_hash_hex}]
+                    simulated_employer_abe_sk = mpc_sim.simulate_secure_computation(
+                        "generate_abe_user_sk", 
+                        inputs=employer_abe_attributes
+                    )
+                    OFF_CHAIN_ENCRYPTED_ABE_KEYS_EMPLOYER[current_request_id] = simulated_employer_abe_sk
+                    print(f"Simulated ABE secret key for Employer ({google_kamc_id}) generated via MPC and stored off-chain for request {current_request_id}.")
+
+                    # Employer fetches encrypted credential and decrypts
+                    retrieved_encrypted_degree_data = OFF_CHAIN_ENCRYPTED_CREDENTIALS.get(degree_hash_hex)
+                    if not retrieved_encrypted_degree_data:
+                        print(f"ERROR: Encrypted degree data not found off-chain for hash {degree_hash_hex}")
+                        break # from employer_key_events loop
+                    
+                    print("Employer: Attempting to decrypt degree details with ABE key...")
+                    decrypted_degree_info = abe_sim.decrypt(retrieved_encrypted_degree_data, simulated_employer_abe_sk)
+                    
+                    verification_status = False
+                    verification_comment = "Decryption failed or policy not met."
+                    if decrypted_degree_info:
+                        print(f"Employer: Decryption SUCCESSFUL. Degree Details: {decrypted_degree_info}")
+                        # Further validation of decrypted_degree_info against request can be done here
+                        verification_status = True
+                        verification_comment = "Credential verified successfully after decryption."
+                    else:
+                        print("Employer: Decryption FAILED. Policy might not be satisfied by employer's ABE key attributes.")
+
+                    # Relayer submits verification result to EMP-Chain
+                    print(f"Relayer: Submitting verification result for Request ID {current_request_id} to EMP-Chain...")
+                    verification_completed_event_filter = verification_requester_contract.events.VerificationCompleted.create_filter(
+                        fromBlock='latest',
+                        argument_filters={'requestId': current_request_id}
+                    )
+                    send_transaction(
+                        w3_emp,
+                        verification_requester_contract.functions.submitVerificationResult(
+                            current_request_id,
+                            verification_status,
+                            verification_comment
+                        ),
+                        CONFIG["EMP_CHAIN"]["PRIVATE_KEY"] # Relayer's PK on EMP-Chain (using deployer for simplicity)
+                    )
+                    print("submitVerificationResult transaction sent.")
+
+                    print("Waiting for VerificationCompleted event on EMP-Chain...")
+                    completed_events = wait_for_event(verification_completed_event_filter, timeout=30)
+                    if completed_events:
+                        for final_event in completed_events:
+                             print(f"[EVENT DETECTED on EMP-Chain] VerificationCompleted for Request ID {final_event['args']['requestId']}. Status: {final_event['args']['verificationStatus']}")
+                    else:
+                        print("VerificationCompleted event not detected.")
+                    break # from employer_key_events loop
+                break # from consent_events loop
+            break # from requested_events loop
+    else:
+        print("No matching VerificationRequested event found for the transaction.")
+        return
+
+    print("Credential Verification Flow complete.")
+    print("\n--- Demo Finished ---")
 
 if __name__ == "__main__":
-    print("Starting Cross-Chain Education Credential Demo with Simulated Crypto Modules...")
-    # Create crypto_simulations directory if it doesn't exist (for the script to run standalone)
-    import os
-    if not os.path.exists("crypto_simulations"):
-        os.makedirs("crypto_simulations")
-        # Create dummy files if they don't exist so imports don't fail immediately
-        # In a real setup, these files would contain the actual simulation classes
-        dummy_content = "# Dummy file for simulation module\nclass DummySim:\n    pass\n"
-        with open("crypto_simulations/__init__.py", "w") as f: f.write("")
-        with open("crypto_simulations/abe_simulation.py", "w") as f: f.write(dummy_content.replace("DummySim", "ABESimulation"))
-        with open("crypto_simulations/mpc_simulation.py", "w") as f: f.write(dummy_content.replace("DummySim", "MPCSimulation"))
-        with open("crypto_simulations/tss_simulation.py", "w") as f: f.write(dummy_content.replace("DummySim", "TSSSimulation"))
-        with open("crypto_simulations/zkp_simulation.py", "w") as f: f.write(dummy_content.replace("DummySim", "ZKPSimulation"))
-        print("Created dummy crypto_simulations directory and files for standalone execution.")
-        print("Please ensure actual simulation files are present for full functionality.")
-
-    demo = CrossChainRelayerDemo()
-    demo.run_full_demo()
-    print("\nDemo Finished.")
+    if not all(w3_instance.is_connected() for w3_instance in [w3_uni, w3_emp, w3_kamc]):
+        print("One or more chains are not connected. Please ensure Hardhat nodes are running correctly.")
+    else:
+        print("All chains connected successfully.")
+        try:
+            main_demo()
+        except Exception as e:
+            print(f"An error occurred during the demo: {e}")
+            import traceback
+            traceback.print_exc()
 

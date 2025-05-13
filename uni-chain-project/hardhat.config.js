@@ -5,7 +5,7 @@ module.exports = {
   solidity: "0.8.20", // Hoặc phiên bản bạn dùng
   networks: {
     hardhat: { // Mạng mặc định khi chạy npx hardhat node
-      chainId: 1337, // Mặc định
+      chainId: 31337, // Mặc định
       port: 8545, // Hardhat tự động chọn nếu không chỉ định khi chạy node
     },
     localhost_uni: {

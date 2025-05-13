@@ -1,251 +1,249 @@
-{
-  "abi": [
-    {
-      "inputs": [],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "universityAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "studentId_on_KAMC_Chain",
-          "type": "string"
-        },
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "degreeHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "offChainEncryptedDataPointer",
-          "type": "string"
-        }
-      ],
-      "name": "CredentialIssued",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "universityAddress",
-          "type": "address"
-        }
-      ],
-      "name": "UniversityRegistered",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "name": "credentials",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "universityAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "string",
-          "name": "studentId_on_KAMC_Chain",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "credentialType",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "major",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "graduationYear",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "offChainEncryptedDataPointer",
-          "type": "string"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "degreeHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bool",
-          "name": "isValid",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_degreeHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getCredentialInfo",
-      "outputs": [
-        {
-          "components": [
-            {
-              "internalType": "address",
-              "name": "universityAddress",
-              "type": "address"
-            },
-            {
-              "internalType": "string",
-              "name": "studentId_on_KAMC_Chain",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "credentialType",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "major",
-              "type": "string"
-            },
-            {
-              "internalType": "uint256",
-              "name": "graduationYear",
-              "type": "uint256"
-            },
-            {
-              "internalType": "string",
-              "name": "offChainEncryptedDataPointer",
-              "type": "string"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "degreeHash",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "bool",
-              "name": "isValid",
-              "type": "bool"
-            }
-          ],
-          "internalType": "struct UniversityRegistry.CredentialInfo",
-          "name": "",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_studentId_on_KAMC_Chain",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "_credentialType",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "_major",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_graduationYear",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "_offChainEncryptedDataPointer",
-          "type": "string"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_degreeHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "issueCredential",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_universityAddress",
-          "type": "address"
-        }
-      ],
-      "name": "registerUniversity",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "registeredUniversities",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    }
-  ]
-}
+"abi": [
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "universityAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "studentId_on_KAMC_Chain",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "degreeHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "offChainEncryptedDataPointer",
+        "type": "string"
+      }
+    ],
+    "name": "CredentialIssued",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "universityAddress",
+        "type": "address"
+      }
+    ],
+    "name": "UniversityRegistered",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "credentials",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "universityAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "studentId_on_KAMC_Chain",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "credentialType",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "major",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "graduationYear",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "offChainEncryptedDataPointer",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "degreeHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "isValid",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_degreeHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getCredentialInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "universityAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "studentId_on_KAMC_Chain",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "credentialType",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "major",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "graduationYear",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "offChainEncryptedDataPointer",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "degreeHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bool",
+            "name": "isValid",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct UniversityRegistry.CredentialInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_studentId_on_KAMC_Chain",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_credentialType",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_major",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_graduationYear",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_offChainEncryptedDataPointer",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_degreeHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "issueCredential",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_universityAddress",
+        "type": "address"
+      }
+    ],
+    "name": "registerUniversity",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "registeredUniversities",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

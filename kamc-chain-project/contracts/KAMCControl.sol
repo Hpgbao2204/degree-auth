@@ -44,14 +44,20 @@ contract KAMCControl {
     }
 
     modifier onlyKAMCMember() {
-        require(kamcMembers[msg.sender], "Only KAMC members can call this function.");
+        require(
+            kamcMembers[msg.sender],
+            "Only KAMC members can call this function."
+        );
         _;
     }
-    
+
     // Modifier for relayer or authorized address to confirm ABE key generation
     address public relayerAddress;
     modifier onlyRelayer() {
-        require(msg.sender == relayerAddress, "Only authorized relayer can call this function.");
+        require(
+            msg.sender == relayerAddress,
+            "Only authorized relayer can call this function."
+        );
         _;
     }
 
@@ -66,26 +72,37 @@ contract KAMCControl {
         relayerAddress = _newRelayerAddress;
     }
 
-    function addKAMCMember(address _memberAddress) public onlyOwner { // Or by KAMC consensus
-        require(!kamcMembers[_memberAddress], "Address is already a KAMC member.");
+    function addKAMCMember(address _memberAddress) public onlyOwner {
+        // Or by KAMC consensus
+        require(
+            !kamcMembers[_memberAddress],
+            "Address is already a KAMC member."
+        );
         kamcMembers[_memberAddress] = true;
         kamcMemberCount++;
         emit KAMCMemberAdded(_memberAddress);
     }
 
-    function removeKAMCMember(address _memberAddress) external onlyOwner { // Or by KAMC consensus
+    function removeKAMCMember(address _memberAddress) external onlyOwner {
+        // Or by KAMC consensus
         require(kamcMembers[_memberAddress], "Address is not a KAMC member.");
         kamcMembers[_memberAddress] = false;
         kamcMemberCount--;
         emit KAMCMemberRemoved(_memberAddress);
     }
 
-    function updateTSSPublicKey(string calldata _newTSSPublicKey) external onlyOwner { // Or by KAMC consensus
+    function updateTSSPublicKey(
+        string calldata _newTSSPublicKey
+    ) external onlyOwner {
+        // Or by KAMC consensus
         tssPublicKey = _newTSSPublicKey;
         emit TSSPublicKeyUpdated(_newTSSPublicKey);
     }
 
-    function updateABEPublicParams(string calldata _newABEPublicParams) external onlyOwner { // Or by KAMC consensus
+    function updateABEPublicParams(
+        string calldata _newABEPublicParams
+    ) external onlyOwner {
+        // Or by KAMC consensus
         abePublicParams = _newABEPublicParams;
         emit ABEPublicParamsUpdated(_newABEPublicParams);
     }
@@ -93,8 +110,14 @@ contract KAMCControl {
     function requestABEKeyGeneration(
         string calldata _requesterId_on_KAMC_Chain, // Entity ID from EntityRegistry
         string calldata _attributes_json
-        // string calldata _tssApprovalPayload // This would be verified off-chain by relayer before calling confirm
-    ) external returns (uint256 requestId) { // Called by UNI for student, or EMP after consent
+    )
+        external
+        returns (
+            // string calldata _tssApprovalPayload // This would be verified off-chain by relayer before calling confirm
+            uint256 requestId
+        )
+    {
+        // Called by UNI for student, or EMP after consent
         // In a real system, there might be a fee or other checks here.
         // The _tssApprovalPayload is assumed to be handled off-chain by the relayer
         // before the relayer calls confirmABEKeyGenerated.
@@ -105,32 +128,52 @@ contract KAMCControl {
             requestId,
             _requesterId_on_KAMC_Chain,
             _attributes_json,
-            // _tssApprovalPayload, 
+            // _tssApprovalPayload,
             false, // isProcessed
             "" // encryptedKeyMaterialPointer (initially empty)
         );
         nextABEKeyRequestId++;
 
-        emit ABEKeyGenerationRequested(requestId, _requesterId_on_KAMC_Chain, _attributes_json);
+        emit ABEKeyGenerationRequested(
+            requestId,
+            _requesterId_on_KAMC_Chain,
+            _attributes_json
+        );
         return requestId;
     }
 
     function confirmABEKeyGenerated(
         uint256 _requestId,
         string calldata _encryptedKeyMaterialPointer
-    ) external onlyRelayer { // Called by the relayer after off-chain MPC/TSS and key storage
-        ABEKeyGenerationRequest storage requestToUpdate = abeKeyRequests[_requestId];
+    ) external onlyRelayer {
+        // Called by the relayer after off-chain MPC/TSS and key storage
+        ABEKeyGenerationRequest storage requestToUpdate = abeKeyRequests[
+            _requestId
+        ];
         require(requestToUpdate.requestId != 0, "ABE key request not found.");
-        require(!requestToUpdate.isProcessed, "ABE key request already processed.");
+        require(
+            !requestToUpdate.isProcessed,
+            "ABE key request already processed."
+        );
 
-        requestToUpdate.encryptedKeyMaterialPointer = _encryptedKeyMaterialPointer;
+        requestToUpdate
+            .encryptedKeyMaterialPointer = _encryptedKeyMaterialPointer;
         requestToUpdate.isProcessed = true;
 
-        emit ABEKeyReady(_requestId, requestToUpdate.requesterId_on_KAMC_Chain, _encryptedKeyMaterialPointer);
+        emit ABEKeyReady(
+            _requestId,
+            requestToUpdate.requesterId_on_KAMC_Chain,
+            _encryptedKeyMaterialPointer
+        );
     }
 
-    function getABEKeyGenerationRequest(uint256 _requestId) external view returns (ABEKeyGenerationRequest memory) {
-        require(abeKeyRequests[_requestId].requestId != 0, "ABE key request not found.");
+    function getABEKeyGenerationRequest(
+        uint256 _requestId
+    ) external view returns (ABEKeyGenerationRequest memory) {
+        require(
+            abeKeyRequests[_requestId].requestId != 0,
+            "ABE key request not found."
+        );
         return abeKeyRequests[_requestId];
     }
 }

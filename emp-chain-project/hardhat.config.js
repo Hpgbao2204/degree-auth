@@ -5,7 +5,7 @@ module.exports = {
   solidity: "0.8.20",
   networks: {
     hardhat: {
-      chainId: 1338, // Thay đổi chainId để phân biệt
+      chainId: 31338, // Thay đổi chainId để phân biệt
       port: 8546
     },
     localhost_emp: {
