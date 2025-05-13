@@ -49,8 +49,9 @@ CONFIG = {
         "EntityRegistry": "0xC469e7aE4aD962c30c7111dc580B4adbc7E914DD",
         "KAMCControl": "0x43ca3D2C94be00692D207C6A1e60D8B325c6f12f",
         # This account is the KAMC Admin, registers University, updates KAMCControl.
-        "ACCOUNT_ADDRESS": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", # Hardhat Account #2
-        "PRIVATE_KEY": "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+        "ACCOUNT_ADDRESS": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199", # Hardhat Account #2
+        "PRIVATE_KEY": "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e"
+        # Check: Who is owner of this contract 
     }
 }
 
