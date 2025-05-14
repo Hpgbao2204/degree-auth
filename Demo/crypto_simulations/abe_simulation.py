@@ -29,63 +29,55 @@ class ABESimulation:
         }
         return json.dumps(ciphertext) # Return as a JSON string for storage/transmission
 
-    # def decrypt(self, ciphertext_str, user_secret_key_str):
+    def decrypt(self, ciphertext_str, user_secret_key_str):
         """Decrypts data if the user's secret key attributes satisfy the ciphertext's policy."""
         print(f"[ABE SIM] Attempting to decrypt with key: {user_secret_key_str}")
         try:
             ciphertext = json.loads(ciphertext_str)
-            policy = ciphertext.get("policy")
+            policy_str = ciphertext.get("policy")
             encrypted_content = ciphertext.get("encrypted_content")
 
-            # Highly simplified policy check: Does the key contain the policy string?
-            # In a real system, this involves complex attribute matching and cryptographic operations.
-            # Example: user_secret_key_str = "sk_abe_for_(student_id:STU-1)_with_(abe_msk_simulated)"
-            #          policy = "student_id:STU-1"
-            # This simplistic check assumes the key was generated for attributes that directly satisfy the policy.
-            # A more robust simulation would parse attributes from the key and policy and compare them.
+            # Extract attributes from key string
+            # Example user_secret_key_str: "sk_abe_for_(['student_id:STU-2', 'degree_topic:B.S. Computer Science'])_with_(abe_msk_simulated)"
+            key_attrs_raw_part = user_secret_key_str.split("_with_")[0]
+            key_attrs_str_list_format = key_attrs_raw_part.replace("sk_abe_for_(", "").rstrip(")")
             
-            # Extract attributes from key (very simplified)
-            key_attributes_part = user_secret_key_str.split("_with_")[0].replace("sk_abe_for_(", "").replace(")", "")
-            
-            # Simple check: if policy is a substring of key attributes part
-            # This is a very loose check for simulation purposes.
-            if policy in key_attributes_part:
-                print(f"[ABE SIM] Policy {policy} satisfied by key attributes {key_attributes_part}. Decryption successful.")
+            key_attrs_set = set()
+            try:
+                import ast
+                # key_attrs_str_list_format should be like "['student_id:STU-2', 'degree_topic:B.S. Computer Science']"
+                parsed_attributes = ast.literal_eval(key_attrs_str_list_format)
+                if isinstance(parsed_attributes, list):
+                    key_attrs_set = set(parsed_attributes) # This creates a set like {'student_id:STU-2', 'degree_topic:B.S. Computer Science'}
+                else:
+                    print(f"[ABE SIM] WARNING: Parsed key attributes is not a list: {parsed_attributes}. Using fallback parsing.")
+                    # Fallback if not a list, though it should be based on key generation
+                    key_attrs_set = set(attr.strip() for attr in key_attrs_str_list_format.replace("[","").replace("]","").replace("'","").split(","))
+            except Exception as e_ast:
+                print(f"[ABE SIM] Error parsing key attributes with ast.literal_eval: {e_ast}. Using fallback parsing.")
+                # Fallback parsing if ast.literal_eval fails (e.g. if format is not a valid Python literal string)
+                key_attrs_set = set(attr.strip() for attr in key_attrs_str_list_format.replace("[","").replace("]","").replace("'","").split(","))
+
+            # Parse policy attributes from policy string (e.g., "student_id:STU-2,degree_topic:B.S. Computer Science")
+            policy_attrs_set = set(attr.strip() for attr in policy_str.split(","))
+
+            print(f"[ABE SIM] Key attributes after parsing: {key_attrs_set}")
+            print(f"[ABE SIM] Policy attributes: {policy_attrs_set}")
+
+            # Check if policy attributes are a subset of key attributes
+            if policy_attrs_set.issubset(key_attrs_set):
+                print(f"[ABE SIM] Policy {policy_attrs_set} satisfied by key attributes {key_attrs_set}. Decryption successful.")
                 # Extract original data (very simplified)
-                original_data = encrypted_content.replace(f"abe_encrypted_version_of(", "").replace(f")_under_policy({policy})", "")
+                original_data = encrypted_content.replace(f"abe_encrypted_version_of(", "").replace(f")_under_policy({policy_str})", "")
                 return original_data
             else:
-                print(f"[ABE SIM] Policy {policy} NOT satisfied by key attributes {key_attributes_part}. Decryption failed.")
+                print(f"[ABE SIM] Policy {policy_attrs_set} NOT satisfied by key attributes {key_attrs_set}. Decryption failed.")
                 return None
         except Exception as e:
             print(f"[ABE SIM] Decryption error: {e}")
             return None
 
-    def decrypt(self, ciphertext_str, user_secret_key_str):
-      print(f"[ABE SIM] Attempting to decrypt with key: {user_secret_key_str}")
-      try:
-          ciphertext = json.loads(ciphertext_str)
-          policy_str = ciphertext.get("policy")
-          encrypted_content = ciphertext.get("encrypted_content")
-
-          # Tách các thuộc tính từ key
-          key_attrs_raw = user_secret_key_str.split("_with_")[0].replace("sk_abe_for_(", "").replace(")", "")
-          key_attrs_set = set(attr.strip() for attr in key_attrs_raw.split(","))
-
-          # Tách các thuộc tính từ policy
-          policy_attrs_set = set(attr.strip() for attr in policy_str.split(","))
-
-          # So sánh policy ⊆ key attributes
-          if policy_attrs_set.issubset(key_attrs_set):
-              print(f"[ABE SIM] Policy {policy_attrs_set} satisfied by key attributes {key_attrs_set}. Decryption successful.")
-              original_data = encrypted_content.replace(f"abe_encrypted_version_of(", "").replace(f")_under_policy({policy_str})", "")
-              return original_data
-          else:
-              print(f"[ABE SIM] Policy {policy_attrs_set} NOT satisfied by key attributes {key_attrs_set}. Decryption failed.")
-              return None
-      except Exception as e:
-          print(f"[ABE SIM] Decryption error: {e}")
-          return None
+    
         
 if __name__ == '__main__':
     abe_system = ABESimulation()

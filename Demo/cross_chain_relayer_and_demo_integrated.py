@@ -453,17 +453,17 @@ def main_demo():
             print(f"Registering University {uni_issuer_address_on_uni_chain} on UniRegistry...")
             send_transaction(
                 w3_uni,
-                university_registry_contract.functions.registeredUniversities(stanford_kamc_id, "Stanford University"),
+                university_registry_contract.functions.registerUniversity(uni_issuer_address_on_uni_chain),
                 uni_issuer_pk
             )
             print(f"University {uni_issuer_address_on_uni_chain} registered on UniRegistry.")
     except Exception as e:
         print(f"Error during University registration on UniRegistry: {e}")
         return
-
+    # Maybe sẽ đổi cái data degree để tránh bị trùng
     degree_data = {
         "studentName": "Alice Wonderland",
-        "degree": "B.S. Computer Science",
+        "degree": "B.S. Computer Science-16",
         "major": "Artificial Intelligence",
         "graduationYear": 2024,
         "issuingUniversityKAMCID": stanford_kamc_id,
@@ -486,9 +486,12 @@ def main_demo():
     send_transaction(
         w3_uni,
         university_registry_contract.functions.issueCredential(
-            alice_kamc_id, 
-            degree_hash_bytes, 
-            f"ipfs://placeholder_for_encrypted_data_pointer/{degree_hash_hex}" # Off-chain pointer
+            alice_kamc_id,                              # student ID (string)
+            degree_data["degree"],                      # degree name (string)
+            degree_data["major"],                       # major (string)
+            degree_data["graduationYear"],              # graduation year (uint256)
+            f"ipfs://placeholder_for_encrypted_data_pointer/{degree_hash_hex}", # pointer (string)
+            degree_hash_bytes                           # degree hash (bytes32)
         ),
         uni_issuer_pk
     )
@@ -517,7 +520,6 @@ def main_demo():
     send_transaction(
         w3_emp,
         verification_requester_contract.functions.requestVerification(
-            verification_request_id_on_emp_chain,
             google_kamc_id, # Employer's KAMC ID
             alice_kamc_id,  # Student's KAMC ID
             degree_hash_bytes,
@@ -533,19 +535,19 @@ def main_demo():
         return
 
     requested_event_args = verification_requested_events[0]['args']
-    print(f"VerificationRequested event received: Request ID {requested_event_args['requestId_on_EMP_Chain']}, Requester KAMC ID {requested_event_args['requesterId_on_KAMC_Chain']}")
+    print(f"VerificationRequested event received: Request ID {requested_event_args['requestId']}, Requester KAMC ID {requested_event_args['employerId_on_KAMC_Chain']}")
 
     # --- 4. KAMC ABE Key Generation Request (Simulated Relayer/KAMC Action) ---
     print("\n--- 4. KAMC ABE Key Generation Request ---")
     # KAMC (or a relayer) sees VerificationRequested, now requests ABE key from KAMCControl
     abe_key_req_id_on_kamc = 0
     try:
-        print(f"KAMC requesting ABE key generation for EMP request ID: {requested_event_args['requestId_on_EMP_Chain']} by {requested_event_args['requesterId_on_KAMC_Chain']} with attributes: {attributes_for_abe_key_json}")
+        print(f"KAMC requesting ABE key generation for EMP request ID: {requested_event_args['requestId']} by {requested_event_args['employerId_on_KAMC_Chain']} with attributes: {attributes_for_abe_key_json}")
         abe_key_requested_event_filter = kamc_control_contract.events.ABEKeyGenerationRequested.create_filter(from_block='latest')
         tx_receipt_abe_req = send_transaction(
             w3_kamc,
             kamc_control_contract.functions.requestABEKeyGeneration(
-                requested_event_args['requesterId_on_KAMC_Chain'], # This is Google's KAMC ID
+                requested_event_args['employerId_on_KAMC_Chain'], # This is Google's KAMC ID
                 attributes_for_abe_key_json
             ),
             kamc_admin_pk # KAMC Admin initiates this
@@ -559,7 +561,7 @@ def main_demo():
             except Exception:
                 pass
         if abe_key_req_id_on_kamc == 0:
-             raise Exception("Failed to get ABEKeyGenerationRequested event or ID from KAMC.")
+            raise Exception("Failed to get ABEKeyGenerationRequested event or ID from KAMC.")
 
     except Exception as e:
         print(f"Error during KAMC ABE Key Generation Request: {e}")
@@ -570,7 +572,8 @@ def main_demo():
     # KAMC members use MPC/TSS to generate ABE key for the policy
     print(f"[MPC/TSS SIM] KAMC members collaboratively generating ABE key for attributes: {attributes_for_abe_key_json}...")
     # In a real scenario, this involves MPC for master secret key shares and ABE key generation algorithm
-    abe_user_secret_key_sim = abe_sim.generate_user_key(attributes_for_abe_key)
+    attributes_for_key_generation = [f"{k}:{v}" for k, v in attributes_for_abe_key.items()]
+    abe_user_secret_key_sim = abe_sim.generate_secret_key(attributes_for_key_generation)
     print(f"[ABE SIM] Generated ABE User Secret Key (simulated): {str(abe_user_secret_key_sim)[:50]}...")
     
     # Encrypt this key or store pointer to it (simulation: store directly for employer)
@@ -604,32 +607,34 @@ def main_demo():
     # For ZKP, student needs the original degree data to prove they know it.
     # In a real system, student would have their copy or be able to reconstruct it.
     print(f"[ZKP SIM] Alice generating ZKP for degree hash: {degree_hash_hex}")
-    zkp_proof_sim = zkp_sim.generate_proof(degree_data_json, {"action": "consent_to_verify"})
+    public_inputs_dict = {"action": "consent_to_verify"}
+    zkp_proof_sim = zkp_sim.generate_proof(degree_data_json, json.dumps(public_inputs_dict))
     print(f"[ZKP SIM] ZKP generated (simulated): {zkp_proof_sim[:50]}...")
 
-    print(f"Alice (KAMC ID: {alice_kamc_id}, EMP Address: {student_emp_chain_address}) granting consent for verification request ID: {requested_event_args['requestId_on_EMP_Chain']}")
-    consent_granted_event_filter = student_consent_registry_contract.events.ConsentGrantedWithZKP.create_filter(from_block='latest')
+    print(f"Alice (KAMC ID: {alice_kamc_id}, EMP Address: {student_emp_chain_address}) granting consent for verification request ID: {requested_event_args['requestId']}")
+    consent_granted_event_filter = student_consent_registry_contract.events.ConsentGranted.create_filter(from_block='latest')
     
     send_transaction(
         w3_emp,
-        student_consent_registry_contract.functions.grantConsentWithZKP(
-            requested_event_args['requestId_on_EMP_Chain'],
-            zkp_proof_sim, # Simulated ZKP
-            zkp_sim.verification_key # Simulated ZKP verification key
+        student_consent_registry_contract.functions.grantConsent(
+            alice_kamc_id,                # Student's KAMC ID (string)
+            degree_hash_bytes,            # Degree hash (bytes32)
+            requested_event_args['employerId_on_KAMC_Chain'],  # Employer's KAMC ID (string)
+            86400                         # Consent duration in seconds (1 day)
         ),
-        STUDENT_EMP_PK # Student's account on EMP-Chain
+        STUDENT_EMP_PK
     )
 
-    print("Waiting for ConsentGrantedWithZKP event...")
+    print("Waiting for ConsentGranted event...")
     consent_granted_events = wait_for_event(consent_granted_event_filter)
     if not consent_granted_events:
-        print("No ConsentGrantedWithZKP event received. Exiting.")
+        print("No ConsentGranted event received. Exiting.")
         return
-    print(f"ConsentGrantedWithZKP event received for EMP Request ID: {consent_granted_events[0]['args']['requestId_on_EMP_Chain']}")
+    print(f"ConsentGranted event received successfully")
 
     # --- 7. Verification Completion (Simulated Relayer/Employer Action) ---
     print("\n--- 7. Verification Completion ---")
-    # Employer/Relayer sees ABEKeyReady and ConsentGrantedWithZKP
+    # Employer/Relayer sees ABEKeyReady and ConsentGranted
     # Employer retrieves the ABE key (simulated)
     retrieved_abe_key_for_employer = OFF_CHAIN_ENCRYPTED_ABE_KEYS_EMPLOYER.get(abe_key_req_id_on_kamc)
     if not retrieved_abe_key_for_employer:
@@ -656,12 +661,12 @@ def main_demo():
             print("SUCCESS: Credential data decrypted and hash matches. Verification successful!")
             
             # Employer confirms verification on EMP-Chain
-            print(f"Employer confirming verification for EMP Request ID: {requested_event_args['requestId_on_EMP_Chain']}")
+            print(f"Employer confirming verification for EMP Request ID: {requested_event_args['requestId']}")
             verification_completed_event_filter = verification_requester_contract.events.VerificationCompleted.create_filter(from_block='latest')
             send_transaction(
                 w3_emp,
-                verification_requester_contract.functions.confirmVerification(
-                    requested_event_args['requestId_on_EMP_Chain'],
+                verification_requester_contract.functions.submitVerificationResult(
+                    requested_event_args['requestId'],
                     True, # Verification successful
                     "Verified successfully via ABE decryption and ZKP consent."
                 ),
@@ -670,7 +675,8 @@ def main_demo():
             print("Waiting for VerificationCompleted event...")
             verification_completed_events = wait_for_event(verification_completed_event_filter)
             if verification_completed_events:
-                print(f"VerificationCompleted event received for EMP Request ID: {verification_completed_events[0]['args']['requestId_on_EMP_Chain']}, Status: {verification_completed_events[0]['args']['success']}")
+                event_args = verification_completed_events[0]['args']
+                print(f"VerificationCompleted event received for EMP Request ID: {event_args['requestId']}, Status: {event_args['verificationStatus']}") # <--- Đã sửa thành 'verificationStatus'
             else:
                 print("Did not receive VerificationCompleted event.")
 
