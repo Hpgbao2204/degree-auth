@@ -1,210 +1,212 @@
-"abi": [
-  {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "employerId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "expiryTimestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "ConsentGranted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "employerId_on_KAMC_Chain",
-        "type": "string"
-      }
-    ],
-    "name": "ConsentRevoked",
-    "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "_employerId_on_KAMC_Chain",
-        "type": "string"
-      }
-    ],
-    "name": "checkConsent",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "isActive",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "expiryTimestamp",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "name": "consents",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "employerId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "expiryTimestamp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "isActive",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "_employerId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_consentDurationInSeconds",
-        "type": "uint256"
-      }
-    ],
-    "name": "grantConsent",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_studentId_on_KAMC_Chain",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "_degreeHash_on_UNI_Chain",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "_employerId_on_KAMC_Chain",
-        "type": "string"
-      }
-    ],
-    "name": "revokeConsent",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-]
+{  
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "string",
+          "name": "employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "expiryTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "ConsentGranted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "string",
+          "name": "employerId_on_KAMC_Chain",
+          "type": "string"
+        }
+      ],
+      "name": "ConsentRevoked",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_employerId_on_KAMC_Chain",
+          "type": "string"
+        }
+      ],
+      "name": "checkConsent",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expiryTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "consents",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expiryTimestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_employerId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_consentDurationInSeconds",
+          "type": "uint256"
+        }
+      ],
+      "name": "grantConsent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_studentId_on_KAMC_Chain",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_degreeHash_on_UNI_Chain",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_employerId_on_KAMC_Chain",
+          "type": "string"
+        }
+      ],
+      "name": "revokeConsent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}

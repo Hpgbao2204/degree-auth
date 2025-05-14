@@ -11,7 +11,7 @@ ENTITY_REGISTRY_CONTRACT_NAME = "EntityRegistry"
 KAMC_CONTROL_CONTRACT_NAME = "KAMCControl"
 # Replace with a private key from your Hardhat node (e.g., the first account on the third node)
 # Ensure this account has ETH on the KAMC-Chain for gas
-DEPLOYER_PRIVATE_KEY = "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e" # Example private key for Hardhat node 3, account 0
+DEPLOYER_PRIVATE_KEY = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a" # Example private key for Hardhat node 3, account 0
 
 # --- Helper Functions ---
 def load_contract_artifact(contract_name):
